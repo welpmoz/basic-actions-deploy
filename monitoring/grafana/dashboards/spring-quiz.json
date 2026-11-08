@@ -1,0 +1,75 @@
+{
+  "uid": "spring-quiz",
+  "title": "Spring Quiz API",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(up{job=~\"spring-quiz.*\"}, env)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Instance up",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "up{job=~\"spring-quiz.*\", env=~\"$env\"}", "legendFormat": "{{env}}" } ]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Questions imported by batch (last run)",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum by (env) (spring_batch_item_process_seconds_count{env=~\"$env\", spring_batch_item_process_status=\"SUCCESS\"})", "legendFormat": "{{env}}" } ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Uptime",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "process_uptime_seconds{env=~\"$env\"}", "legendFormat": "{{env}}" } ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Total questions served",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum(quiz_questions_served_total{env=~\"$env\"})" } ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "HTTP request rate by URI",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum by (uri, status) (rate(http_server_requests_seconds_count{env=~\"$env\", uri!~\"/actuator.*\"}[1m]))", "legendFormat": "{{uri}} {{status}}" } ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "HTTP latency p95 by URI",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{env=~\"$env\", uri!~\"/actuator.*\"}[5m])))", "legendFormat": "{{uri}}" } ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Questions served by topic (rate)",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum by (topic) (rate(quiz_questions_served_total{env=~\"$env\"}[5m]))", "legendFormat": "{{topic}}" } ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "JVM heap used",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [ { "refId": "A", "expr": "sum by (env) (jvm_memory_used_bytes{area=\"heap\", env=~\"$env\"})", "legendFormat": "{{env}}" } ]
+    }
+  ]
+}

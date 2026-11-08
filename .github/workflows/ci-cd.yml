@@ -1,0 +1,124 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  test:
+    name: Test (TDD suite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Unit + integration tests
+        run: ./mvnw -B verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports
+            target/failsafe-reports
+
+  docker:
+    name: Build & push image
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: |
+          echo "image=${IMAGE,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "latest=${IMAGE,,}:latest" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: APP_VERSION=${{ github.sha }}
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ steps.meta.outputs.latest }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the pushed image
+        run: |
+          docker run -d --name smoke -p 8080:8080 "${{ steps.meta.outputs.image }}"
+          for i in $(seq 1 30); do
+            curl -fs localhost:8080/actuator/health | grep -q UP && break
+            sleep 2
+          done
+          test "$(curl -fs localhost:8080/api/questions | jq length)" -eq 40
+          docker rm -f smoke
+
+  deploy:
+    name: Deploy to Render
+    needs: docker
+    # Skipped until the Render service exists and RENDER_SERVICE_URL is configured.
+    if: vars.RENDER_SERVICE_URL != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.RENDER_SERVICE_URL }}
+    steps:
+      - name: Trigger Render deploy of this image
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          IMAGE_REF: ${{ needs.docker.outputs.image }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "::error::RENDER_DEPLOY_HOOK_URL secret is not set"; exit 1; fi
+          encoded=$(jq -rn --arg v "$IMAGE_REF" '$v|@uri')
+          curl -fsS -X POST "${HOOK}&imgURL=${encoded}"
+
+      - name: Wait until Render serves this commit
+        env:
+          URL: ${{ vars.RENDER_SERVICE_URL }}
+        run: |
+          for i in $(seq 1 60); do
+            version=$(curl -fs "$URL/actuator/info" | jq -r '.app.version' || true)
+            echo "attempt $i: live version=${version:-n/a}"
+            if [ "$version" = "$GITHUB_SHA" ]; then
+              curl -fs "$URL/actuator/health" | grep -q UP
+              test "$(curl -fs "$URL/api/questions" | jq length)" -eq 40
+              echo "Deployed $GITHUB_SHA to $URL"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Render did not serve $GITHUB_SHA within 10 minutes"
+          exit 1

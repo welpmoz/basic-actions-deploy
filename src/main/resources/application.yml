@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: spring-quiz
+  datasource:
+    url: jdbc:h2:mem:quiz;DB_CLOSE_DELAY=-1
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+  batch:
+    job:
+      enabled: true          # run importQuestionsJob at startup
+    jdbc:
+      initialize-schema: always
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+quiz:
+  import:
+    source: classpath:data/questions.csv
+    chunk-size: 10
+
+info:
+  app:
+    version: ${APP_VERSION:local}   # git SHA, injected at image build time
+
+management:
+  info:
+    env:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
