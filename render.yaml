@@ -1,0 +1,12 @@
+# Render Blueprint: image-backed web service.
+# Deploys are triggered by the GitHub Actions "deploy" job through the service's deploy hook,
+# which pins the exact image tag (commit SHA) that CI built and tested.
+services:
+  - type: web
+    name: spring-quiz
+    runtime: image
+    image:
+      url: ghcr.io/welpmoz/basic-actions-deploy:latest
+    plan: free
+    region: oregon
+    healthCheckPath: /actuator/health
