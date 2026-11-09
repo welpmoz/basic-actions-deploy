@@ -5,8 +5,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -41,6 +45,21 @@ public class QuestionService {
         Question question = all.get(ThreadLocalRandom.current().nextInt(all.size()));
         metrics.served(question);
         return question;
+    }
+
+    public QuestionStats stats() {
+        List<Question> all = all();
+
+        Map<String, Long> byTopic = all.stream()
+                .collect(Collectors.groupingBy(Question::getTopic, TreeMap::new, Collectors.counting()));
+
+        Map<Difficulty, Long> byDifficulty = new EnumMap<>(Difficulty.class);
+        for (Difficulty difficulty : Difficulty.values()) {
+            byDifficulty.put(difficulty, 0L);
+        }
+        all.forEach(q -> byDifficulty.merge(q.getDifficulty(), 1L, Long::sum));
+
+        return new QuestionStats(all.size(), byTopic, byDifficulty);
     }
 
     public List<String> topics() {

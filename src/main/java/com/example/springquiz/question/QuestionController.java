@@ -38,4 +38,9 @@ class QuestionController {
     List<String> topics() {
         return service.topics();
     }
+
+    @GetMapping("/stats")
+    QuestionStats stats() {
+        return service.stats();
+    }
 }

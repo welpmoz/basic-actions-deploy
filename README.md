@@ -13,6 +13,7 @@ A REST API that serves **40 advanced Spring Framework interview questions** acro
 | GET | `/api/questions/{id}` | One question. An unknown id returns a `404` ProblemDetail |
 | GET | `/api/questions/random` | A random question |
 | GET | `/api/questions/topics` | The list of topics |
+| GET | `/api/questions/stats` | Counts: `total`, `byTopic`, `byDifficulty` |
 | GET | `/actuator/health` · `/actuator/info` · `/actuator/prometheus` | Health, the deployed commit SHA, and metrics |
 
 `difficulty` must be `ADVANCED` or `EXPERT`. Any other value returns `400`.

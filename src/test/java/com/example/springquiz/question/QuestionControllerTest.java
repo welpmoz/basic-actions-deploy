@@ -86,6 +86,19 @@ class QuestionControllerTest {
     }
 
     @Test
+    void returnsStats() throws Exception {
+        when(service.stats()).thenReturn(new QuestionStats(1,
+                java.util.Map.of("Transactions", 1L),
+                java.util.Map.of(Difficulty.ADVANCED, 0L, Difficulty.EXPERT, 1L)));
+
+        mvc.perform(get("/api/questions/stats"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.byTopic.Transactions").value(1))
+                .andExpect(jsonPath("$.byDifficulty.EXPERT").value(1));
+    }
+
+    @Test
     void listsTopics() throws Exception {
         when(service.topics()).thenReturn(List.of("AOP & Proxies", "Transactions"));
 

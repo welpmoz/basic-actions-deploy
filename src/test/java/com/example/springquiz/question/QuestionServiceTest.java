@@ -84,6 +84,30 @@ class QuestionServiceTest {
     }
 
     @Test
+    void statsCountsTotalTopicsAndDifficulties() {
+        QuestionStats stats = service.stats();
+
+        assertThat(stats.total()).isEqualTo(3);
+        assertThat(stats.byTopic()).containsExactly(
+                java.util.Map.entry("AOP & Proxies", 2L),
+                java.util.Map.entry("Transactions", 1L));
+        assertThat(stats.byDifficulty()).containsExactly(
+                java.util.Map.entry(Difficulty.ADVANCED, 1L),
+                java.util.Map.entry(Difficulty.EXPERT, 2L));
+    }
+
+    @Test
+    void statsListsEveryDifficultyEvenWhenEmpty() {
+        when(repository.findAll(any(Sort.class))).thenReturn(List.of());
+
+        QuestionStats stats = service.stats();
+
+        assertThat(stats.total()).isZero();
+        assertThat(stats.byTopic()).isEmpty();
+        assertThat(stats.byDifficulty()).containsOnlyKeys(Difficulty.values()).containsValues(0L);
+    }
+
+    @Test
     void topicsAreDistinctAndSorted() {
         assertThat(service.topics()).containsExactly("AOP & Proxies", "Transactions");
     }
