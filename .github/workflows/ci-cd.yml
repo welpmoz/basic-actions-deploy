@@ -98,10 +98,10 @@ jobs:
     steps:
       - name: Trigger Render deploy of this image
         env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           IMAGE_REF: ${{ needs.docker.outputs.image }}
         run: |
-          if [ -z "$HOOK" ]; then echo "::error::RENDER_DEPLOY_HOOK_URL secret is not set"; exit 1; fi
+          if [ -z "$HOOK" ]; then echo "::error::RENDER_DEPLOY_HOOK secret is not set"; exit 1; fi
           encoded=$(jq -rn --arg v "$IMAGE_REF" '$v|@uri')
           curl -fsS -X POST "${HOOK}&imgURL=${encoded}"
 

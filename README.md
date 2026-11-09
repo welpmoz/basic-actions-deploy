@@ -56,7 +56,7 @@ Pull requests run only the `test` job.
 
 | Setting | Type | Value |
 |---|---|---|
-| `RENDER_DEPLOY_HOOK_URL` | Repo secret | From the Render service → Settings → Deploy Hook |
+| `RENDER_DEPLOY_HOOK` | Repo secret | From the Render service → Settings → Deploy Hook |
 | `RENDER_SERVICE_URL` | Repo variable | `https://spring-quiz-nh0m.onrender.com`. The deploy job is skipped if this isn't set |
 
 The Render service is defined in `render.yaml`, an image-backed Blueprint. Render only pulls the image that CI has already tested; it never builds the code itself.
